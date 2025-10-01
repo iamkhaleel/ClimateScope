@@ -6,6 +6,13 @@ import ProbabilityChart from "../components/ProbabilityChart";
 import SummaryCard from "../components/SummaryCard";
 import { fetchWeatherData } from "../utils/fetchWeatherData";
 
+// Simple probability function
+function calcProbability(values, threshold) {
+  if (!values || values.length === 0) return 0;
+  const exceedCount = values.filter((v) => v !== null && v > threshold).length;
+  return (exceedCount / values.length) * 100;
+}
+
 export default function Dashboard() {
   const [location, setLocation] = useState({ lat: 12.0, lon: 8.5 });
   const [date, setDate] = useState(new Date());
@@ -23,30 +30,48 @@ export default function Dashboard() {
     setIsLoading(true);
     setError(null);
     try {
-      const rawData = await fetchWeatherData(
+      // Fetch 20 years of historical data
+      const results = await fetchWeatherData(
         location.lat,
         location.lon,
         date,
-        variables
+        variables,
+        20
       );
-      const probabilityData = variables.map((v) => ({
-        variable: v,
-        probability: parseFloat((Math.random() * 100).toFixed(1)),
-      }));
+
+      // Example thresholds (can be made user-selectable)
+      const thresholds = {
+        Temperature: 30, // °C
+        Precipitation: 10, // mm
+        "Wind Speed": 5, // m/s
+      };
+
+      const probabilityData = variables.map((v) => {
+        const values = results[v] || [];
+        const probability = calcProbability(values, thresholds[v] || 0);
+        return { variable: v, probability };
+      });
+
+      // Prepare chart-friendly format
       setData(
         probabilityData.map((d, i) => ({
           day: i + 1,
           probability: d.probability,
         }))
       );
+
+      // Text summary
       const summaryText = probabilityData
         .map(
           (d) =>
-            `Chance of extreme ${d.variable.toLowerCase()}: ${d.probability}%`
+            `Chance of ${d.variable.toLowerCase()} above ${
+              thresholds[d.variable]
+            }: ${d.probability.toFixed(1)}%`
         )
         .join(". ");
       setSummary(summaryText);
     } catch (err) {
+      console.error(err);
       setError("Failed to fetch data. Please try again.");
     } finally {
       setIsLoading(false);
