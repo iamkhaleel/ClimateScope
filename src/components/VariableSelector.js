@@ -1,5 +1,11 @@
 export default function VariableSelector({ variables, setVariables }) {
-  const options = ["Temperature", "Precipitation", "Wind Speed"];
+  const options = [
+    "Temperature",
+    "Rainfall",
+    "Wind Speed",
+    "Humidity",
+    // "Dust Concentration",
+  ];
 
   return (
     <div>
