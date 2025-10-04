@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import MapSelector from "../components/MapSelector";
 import DateSelector from "../components/DateSelector";
 import VariableSelector from "../components/VariableSelector";
@@ -7,9 +6,7 @@ import ProbabilityChart from "../components/ProbabilityChart";
 import SummaryCard from "../components/SummaryCard";
 import LocationSearch from "../components/LocationSearch";
 import ActivitySuggestions from "../components/ActivitySuggestions";
-import WeatherAnimations from "../components/WeatherAnimations";
 import { fetchWeatherData } from "../utils/fetchWeatherData";
-import { saveAs } from "file-saver";
 import {
   FaCalendarAlt,
   FaChartBar,
@@ -20,10 +17,10 @@ import {
   FaSun,
   FaRedo,
   FaDownload,
-  FaWind,
 } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { saveAs } from "file-saver"; // Added for CSV download
 import "react-tabs/style/react-tabs.css";
 
 // -------------------- UNITS --------------------
@@ -67,7 +64,6 @@ function calcMostLikely(values) {
 }
 
 export default function Dashboard() {
-  const navigate = useNavigate();
   const [location, setLocation] = useState({
     lat: 12.0,
     lon: 8.5,
@@ -82,7 +78,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
-  const [showWeatherAnimation, setShowWeatherAnimation] = useState(false);
+
   const [thresholds, setThresholds] = useState(
     variables.reduce(
       (acc, v) => ({ ...acc, [v]: { value: 0, unit: unitOptions[v][0] } }),
@@ -139,7 +135,7 @@ export default function Dashboard() {
         baseThresholds
       );
       const processedData = variables.map((v) => {
-        const values = results[v] || [];
+        const values = results.daily[v] || [];
         const probability = calcProbability(values, baseThresholds[v]);
         const average = calcMostLikely(values);
         return {
@@ -153,22 +149,13 @@ export default function Dashboard() {
       setData(processedData);
       setMostLikely(
         variables.reduce(
-          (acc, v) => ({ ...acc, [v]: calcMostLikely(results[v] || []) }),
+          (acc, v) => ({ ...acc, [v]: calcMostLikely(results.daily[v]) }),
           {}
         )
       );
-      const summaryText = processedData
-        .map((d) => {
-          const t = thresholds[d.variable];
-          return `Chance of ${d.variable.toLowerCase()} above ${t.value}${
-            t.unit
-          }: ${d.probability.toFixed(1)}%`;
-        })
-        .join(". ");
-      setSummary(summaryText);
-
-      // Trigger weather animation after successful data fetch
-      setShowWeatherAnimation(true);
+      setSummary(
+        "Historical data fetched successfully. Analyze probabilities below."
+      );
     } catch (err) {
       setError("Failed to fetch data. Please try again.");
     } finally {
@@ -185,22 +172,9 @@ export default function Dashboard() {
     setMostLikely({});
     setSummary("");
     setError(null);
-    setShowWeatherAnimation(false);
-  };
-
-  const handleAnimationComplete = () => {
-    setShowWeatherAnimation(false);
-  };
-
-  const handleAirQualityCheck = () => {
-    navigate("/air-quality");
   };
 
   const handleDownloadCSV = () => {
-    // Ensure date is a proper Date object
-    const dateObj = date instanceof Date ? date : new Date(date);
-    const dateString = dateObj.toISOString().split("T")[0];
-
     const csvContent = [
       [
         "Variable",
@@ -222,11 +196,11 @@ export default function Dashboard() {
       .map((row) => row.join(","))
       .join("\n");
     const metadata = [
-      `Source: Weather Data API`,
+      `Source: NASA POWER API (https://power.larc.nasa.gov)`,
       `Location: ${location.name || "Unknown"} (${location.lat.toFixed(
         2
       )}, ${location.lon.toFixed(2)})`,
-      `Date: ${dateString}`,
+      `Date: ${date.toISOString().split("T")[0]}`,
       `Variables: ${variables.join(", ")}`,
       `Generated: ${new Date().toISOString()}`,
       "",
@@ -236,46 +210,9 @@ export default function Dashboard() {
     });
     saveAs(
       blob,
-      `WeatherData_${
-        location.name.replace(/\s+/g, "_") || "data"
-      }_${dateString}.csv`
-    );
-  };
-
-  const handleDownloadJSON = () => {
-    // Ensure date is a proper Date object
-    const dateObj = date instanceof Date ? date : new Date(date);
-    const dateString = dateObj.toISOString().split("T")[0];
-
-    const jsonData = {
-      metadata: {
-        source: "Weather Data API",
-        location: {
-          name: location.name || "Unknown",
-          lat: location.lat,
-          lon: location.lon,
-        },
-        date: dateString,
-        variables: variables,
-        generated: new Date().toISOString(),
-      },
-      data: data.map((d) => ({
-        variable: d.variable,
-        probability: d.probability,
-        average: d.average,
-        unit: thresholds[d.variable]?.unit || unitOptions[d.variable][0],
-        count: d.count,
-        values: d.values,
-      })),
-    };
-    const blob = new Blob([JSON.stringify(jsonData, null, 2)], {
-      type: "application/json",
-    });
-    saveAs(
-      blob,
-      `WeatherData_${
-        location.name.replace(/\s+/g, "_") || "data"
-      }_${dateString}.json`
+      `ClimateScope_${location.name.replace(/\s+/g, "_") || "data"}_${
+        date.toISOString().split("T")[0]
+      }.csv`
     );
   };
 
@@ -303,9 +240,8 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      {/* Main Layout */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Sidebar */}
+        {/* Sidebar - Animated Slide-In */}
         <motion.aside
           initial={{ opacity: 0, x: -100 }}
           animate={{ opacity: 1, x: 0 }}
@@ -367,6 +303,9 @@ export default function Dashboard() {
                       </option>
                     ))}
                   </select>
+                  <span className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2">
+                    Set extreme threshold for {v}
+                  </span>
                 </div>
               ))}
             </div>
@@ -382,7 +321,6 @@ export default function Dashboard() {
             {isLoading ? <FaSyncAlt className="animate-spin" /> : null}
             {isLoading ? "Fetching..." : "Fetch Data"}
           </motion.button>
-
           <motion.button
             whileHover={{ scale: 1.05 }}
             onClick={handleReset}
@@ -390,16 +328,6 @@ export default function Dashboard() {
           >
             <FaRedo /> Reset
           </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleAirQualityCheck}
-            className="w-full py-3 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 transition flex items-center justify-center gap-2 shadow-md"
-          >
-            <FaWind /> Air Quality Check
-          </motion.button>
-
           {error && (
             <p className="text-sm text-red-600 dark:text-red-400 text-center">
               {error}
@@ -407,7 +335,7 @@ export default function Dashboard() {
           )}
         </motion.aside>
 
-        {/* Main Content */}
+        {/* Main Content - Animated Fade-In */}
         <main className="col-span-1 md:col-span-3 space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
@@ -423,7 +351,7 @@ export default function Dashboard() {
                 setLocation({ lat: loc.lat, lon: loc.lon, name: loc.name });
                 setSearchQuery(loc.name);
               }}
-              value={location?.name || searchQuery}
+              value={searchQuery}
             />
             {location?.name && (
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
@@ -465,25 +393,14 @@ export default function Dashboard() {
                 transition={{ duration: 0.3 }}
                 className="bg-white dark:bg-gray-800 shadow-xl rounded-xl p-6 border border-teal-200 dark:border-teal-700"
               >
-                <div className="flex gap-2 mb-4">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleDownloadCSV}
-                    className="py-2 px-4 bg-teal-600 text-white font-medium rounded-md hover:bg-teal-700 transition flex items-center gap-2"
-                  >
-                    <FaDownload /> Download CSV
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleDownloadJSON}
-                    className="py-2 px-4 bg-purple-600 text-white font-medium rounded-md hover:bg-purple-700 transition flex items-center gap-2"
-                  >
-                    <FaDownload /> Download JSON
-                  </motion.button>
-                </div>
-
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleDownloadCSV}
+                  className="mb-4 py-2 px-4 bg-teal-600 text-white font-medium rounded-md hover:bg-teal-700 transition flex items-center gap-2"
+                >
+                  <FaDownload /> Download CSV
+                </motion.button>
                 <Tabs>
                   <TabList className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
                     <Tab className="px-4 py-2 cursor-pointer text-purple-600 dark:text-purple-400 hover:bg-teal-100 dark:hover:bg-gray-700 rounded-t-md">
@@ -496,7 +413,6 @@ export default function Dashboard() {
                       Suggestions
                     </Tab>
                   </TabList>
-
                   <TabPanel>
                     <ProbabilityChart data={data} />
                   </TabPanel>
@@ -519,15 +435,8 @@ export default function Dashboard() {
 
       {/* Footer */}
       <footer className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
-        © 2025 ClimateScopeApp. Powered by ClimateScopeTeam.
+        © 2025 ClimateScopeApp. Powered by xAI.
       </footer>
-
-      {/* Weather Animations */}
-      <WeatherAnimations
-        weatherData={mostLikely}
-        showAnimation={showWeatherAnimation}
-        onAnimationComplete={handleAnimationComplete}
-      />
     </div>
   );
 }

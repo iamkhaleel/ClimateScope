@@ -42,13 +42,41 @@ function Recenter({ location }) {
 // helper: handle clicks on the map
 function ClickHandler({ setLocation }) {
   useMapEvents({
-    click(e) {
+    async click(e) {
       const { lat, lng } = e.latlng;
-      setLocation({
+
+      // Set temporary location with coordinates
+      const tempLocation = {
         lat,
         lon: lng,
         name: `Pinned: ${lat.toFixed(3)}, ${lng.toFixed(3)}`,
-      });
+      };
+      setLocation(tempLocation);
+
+      // Try to get the actual place name using reverse geocoding
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`,
+          {
+            headers: {
+              "User-Agent": "ClimateScopeApp/1.0 (contact@example.com)",
+            },
+          }
+        );
+        const data = await response.json();
+
+        if (data && data.display_name) {
+          // Update location with the actual place name
+          setLocation({
+            lat,
+            lon: lng,
+            name: data.display_name,
+          });
+        }
+      } catch (error) {
+        console.error("Reverse geocoding error:", error);
+        // Keep the temporary location with coordinates if reverse geocoding fails
+      }
     },
   });
   return null;

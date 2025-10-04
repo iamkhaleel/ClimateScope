@@ -9,7 +9,7 @@ export default function DateSelector({ date, setDate }) {
       <input
         type="date"
         value={dayjs(date).format("YYYY-MM-DD")}
-        onChange={(e) => setDate(e.target.value)}
+        onChange={(e) => setDate(new Date(e.target.value))}
         className="border border-gray-300 p-2 rounded-md w-full max-w-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
     </div>

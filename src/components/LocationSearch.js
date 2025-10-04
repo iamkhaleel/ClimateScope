@@ -11,8 +11,9 @@ import React, { useState, useRef, useEffect } from "react";
 export default function LocationSearch({
   onLocationSelect,
   placeholder = "Search for a place...",
+  value = "",
 }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(value);
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const timerRef = useRef(null);
@@ -25,6 +26,11 @@ export default function LocationSearch({
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
+
+  // Update query when value prop changes
+  useEffect(() => {
+    setQuery(value);
+  }, [value]);
 
   const fetchSuggestions = (q) => {
     if (!q || q.length < 3) {
