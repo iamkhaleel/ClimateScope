@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -43,21 +43,32 @@ function computeHistogram(values = [], bins = 10) {
 }
 
 export default function ProbabilityChart({ data = [] }) {
-  if (!data || data.length === 0) return null;
+  // Ensure hooks are always called in the same order
+  const safeData = Array.isArray(data) ? data : [];
+  const firstIdx = safeData.findIndex((d) => d.values && d.values.length > 0);
+  const initialVar =
+    firstIdx >= 0 ? safeData[firstIdx].variable : safeData[0]?.variable ?? null;
+  const [selectedVar, setSelectedVar] = useState(initialVar);
 
-  const firstIdx = data.findIndex((d) => d.values && d.values.length > 0);
-  const [selectedVar, setSelectedVar] = useState(
-    firstIdx >= 0 ? data[firstIdx].variable : data[0].variable
-  );
+  // Keep selection in sync if incoming data changes
+  useEffect(() => {
+    const idx = safeData.findIndex((d) => d.values && d.values.length > 0);
+    const next =
+      idx >= 0 ? safeData[idx].variable : safeData[0]?.variable ?? null;
+    setSelectedVar(next);
+  }, [safeData]);
 
-  const barData = data.map((d) => ({
+  if (!safeData || safeData.length === 0) return null;
+
+  const barData = safeData.map((d) => ({
     variable: d.variable,
     probability: d.probability,
     average: d.average ?? null,
     count: d.count,
   }));
 
-  const selectedObj = data.find((d) => d.variable === selectedVar) || data[0];
+  const selectedObj =
+    safeData.find((d) => d.variable === selectedVar) || safeData[0];
   const histogram = computeHistogram(selectedObj.values, 12);
 
   return (
