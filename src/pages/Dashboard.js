@@ -222,7 +222,7 @@ export default function Dashboard() {
       .map((row) => row.join(","))
       .join("\n");
     const metadata = [
-      `Source: Weather Data API`,
+      `Source: Giovanni Nasa`,
       `Location: ${location.name || "Unknown"} (${location.lat.toFixed(
         2
       )}, ${location.lon.toFixed(2)})`,
@@ -289,7 +289,7 @@ export default function Dashboard() {
           <FaChartBar /> ClimateScope
         </h1>
         <div className="flex items-center gap-4">
-          <FaUserCircle className="text-3xl text-purple-600 dark:text-purple-400" />
+          {/* <FaUserCircle className="text-3xl text-purple-600 dark:text-purple-400" /> */}
           <button
             onClick={() => setDarkMode(!darkMode)}
             className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
